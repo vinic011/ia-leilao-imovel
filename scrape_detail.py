@@ -6,6 +6,7 @@ from selenium.webdriver.support.ui import Select, WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from var import vars
 import os
+import requests
 
 path = f"data/detail/{vars['cidade'].lower()}_{vars['estado'].lower()}"
 os.makedirs(path, exist_ok=True)
@@ -58,8 +59,17 @@ for imovel in imoveis:
     driver.execute_script(f"detalhe_imovel({imovel})")
     detalhe = wait.until(EC.presence_of_element_located((By.ID, "dadosImovel")))
 
-    with open(f"data/detail/{vars['cidade'].lower()}_{vars['estado'].lower()}/{imovel}.html", "w", encoding="utf-8") as f:
+    with open(f"{path}/{imovel}.html", "w", encoding="utf-8") as f:
         f.write(detalhe.get_attribute("outerHTML"))
+
+    url = f"https://venda-imoveis.caixa.gov.br/editais/matricula/{vars['estado']}/{imovel}.pdf"
+    response = requests.get(url)
+    if response.status_code == 200:
+        with open(f"{path}/{imovel}.pdf", "wb") as f:
+            f.write(response.content)
+        print(f"Downloaded PDF for property {imovel}")
+
+    time.sleep(5)  # espera o PDF carregar
 
     driver.quit()
 
