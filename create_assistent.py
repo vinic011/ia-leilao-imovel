@@ -17,7 +17,7 @@ Você deve extrair os fatos relevantes, citar onde encontrou cada dado, atribuir
 
 Arquivos & dados fornecidos:
 Edital (PDF),
-Matrícula (PDF),
+Matrícula (será enviado o texto do pdf da matrícula),
 e Descrição: (será enviado um HTML com a descrição do imóvel).
 O que você deve entregar (ordem e formato):
 

@@ -5,6 +5,9 @@
 ```
 conda env create -f env.yaml
 ```
+```
+brew install poppler
+```
 
 # 2. Scrapping de dados do site da caixa
 

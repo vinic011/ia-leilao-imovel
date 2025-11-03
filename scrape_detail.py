@@ -6,7 +6,18 @@ from selenium.webdriver.support.ui import Select, WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from var import vars
 import os
-import requests
+from selenium.webdriver.chrome.options import Options
+
+# Caminho onde quer salvar os PDFs
+download_dir = f"{os.getcwd()}/data/detail/{vars['cidade'].lower()}_{vars['estado'].lower()}"
+
+# Configurações do Chrome
+options = Options()
+options.add_experimental_option("prefs", {
+    "download.default_directory": download_dir,
+    "download.prompt_for_download": False,
+    "plugins.always_open_pdf_externally": True  # Abre PDF fora do Chrome
+})
 
 path = f"data/detail/{vars['cidade'].lower()}_{vars['estado'].lower()}"
 os.makedirs(path, exist_ok=True)
@@ -26,7 +37,7 @@ for tag in soup.find_all(text=lambda t: "Número do imóvel" in t):
 for imovel in imoveis:
     print(imovel)
 
-    driver = webdriver.Chrome()
+    driver = webdriver.Chrome(options=options)
     driver.get("https://venda-imoveis.caixa.gov.br/sistema/busca-imovel.asp")
 
     wait = WebDriverWait(driver, 10)
@@ -34,12 +45,12 @@ for imovel in imoveis:
     # Espera até o select de estado estar presente no DOM
     estado_select = wait.until(EC.presence_of_element_located((By.ID, "cmb_estado")))
 
-    time.sleep(7)
+    time.sleep(5)
 
     # Seleciona o estado (ex:x Pernambuco)
     Select(estado_select).select_by_visible_text(vars["estado"])
 
-    time.sleep(7)
+    time.sleep(5)
 
     # Espera o campo de cidade ser atualizado
     cidade_select = wait.until(EC.presence_of_element_located((By.ID, "cmb_cidade")))
@@ -48,12 +59,12 @@ for imovel in imoveis:
     Select(cidade_select).select_by_visible_text(vars["cidade"])
 
     # Extrai todas as opções de cidade
-    time.sleep(3)
+    time.sleep(2)
     driver.find_element(By.ID, "btn_next0").click()
-    time.sleep(3)
+    time.sleep(2)
     driver.find_element(By.ID, "btn_next1").click()
 
-    time.sleep(3)
+    time.sleep(2)
 
     # salvar detalhe:
     driver.execute_script(f"detalhe_imovel({imovel})")
@@ -62,14 +73,9 @@ for imovel in imoveis:
     with open(f"{path}/{imovel}.html", "w", encoding="utf-8") as f:
         f.write(detalhe.get_attribute("outerHTML"))
 
-    url = f"https://venda-imoveis.caixa.gov.br/editais/matricula/{vars['estado']}/{imovel}.pdf"
-    response = requests.get(url)
-    if response.status_code == 200:
-        with open(f"{path}/{imovel}.pdf", "wb") as f:
-            f.write(response.content)
-        print(f"Downloaded PDF for property {imovel}")
+    driver.execute_script(f"ExibeDoc('/editais/matricula/{vars['estado']}/{imovel}.pdf')")
 
-    time.sleep(5)  # espera o PDF carregar
+    time.sleep(2)  # espera o PDF carregar
 
     driver.quit()
 
