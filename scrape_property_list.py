@@ -4,11 +4,13 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import Select, WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from var import vars
+import os
 
-vars = {
-    "estado": "PE",
-    "cidade": "RECIFE"
-}
+path = f"data/list"
+
+os.makedirs(path, exist_ok=True)
+
 
 driver = webdriver.Chrome()
 driver.get("https://venda-imoveis.caixa.gov.br/sistema/busca-imovel.asp")
@@ -43,7 +45,7 @@ time.sleep(5)
 html_lista = lista_div.get_attribute("outerHTML")
 
 
-with open(f"imoveis_{vars['cidade'].lower()}_{vars['estado'].lower()}.html", "w", encoding="utf-8") as f:
+with open(f"data/list/imoveis_{vars['cidade'].lower()}_{vars['estado'].lower()}.html", "w", encoding="utf-8") as f:
     f.write(html_lista)
 
 driver.quit()
