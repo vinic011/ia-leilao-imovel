@@ -16,3 +16,9 @@ python scrape_property_list.py
 ```
 python scrape_datail.py
 ```
+
+# 3. Upload do edital
+
+```
+python upload_edital.py
+```
