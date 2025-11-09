@@ -18,6 +18,13 @@ Saída: JSON com lista de imóveis analisados e ranqueados
 import json
 import os
 import sys
+import io
+import re
+
+# Configurar encoding UTF-8 para Windows (resolve problema com emojis/caracteres especiais)
+if sys.platform == 'win32':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 import subprocess
 import argparse
 from pathlib import Path
@@ -36,6 +43,16 @@ class AutomationPipeline:
         self.config_path = Path("config.json")
         self.data_dir = Path("data")
         self.analysis_dir = self.data_dir / "analysis"
+        
+        # Detecta o Python correto (venv se disponível, senão sys.executable)
+        venv_python = Path(__file__).parent / "venv" / "Scripts" / "python.exe"
+        if venv_python.exists():
+            self.python_executable = str(venv_python)
+            self.log(f"Usando Python do venv: {self.python_executable}")
+        else:
+            self.python_executable = sys.executable
+            self.log(f"AVISO: venv não encontrado, usando Python do sistema: {self.python_executable}", "WARNING")
+        
         self.results = {
             "timestamp": datetime.now().isoformat(),
             "estado": self.estado,
@@ -86,7 +103,7 @@ class AutomationPipeline:
             
             # Executa scraping
             result = subprocess.run(
-                [sys.executable, "scrape_property_list.py"],
+                [self.python_executable, "scrape_property_list.py"],
                 capture_output=True,
                 text=True,
                 timeout=300  # 5 minutos
@@ -135,7 +152,7 @@ class AutomationPipeline:
             soup = BeautifulSoup(html, 'html.parser')
             imoveis = []
             
-            for tag in soup.find_all(text=lambda t: t and "Número do imóvel" in t):
+            for tag in soup.find_all(string=lambda t: t and "Número do imóvel" in t):
                 partes = tag.strip().split(":")
                 if len(partes) > 1:
                     numero = partes[1].strip().split("<")[0].split()[0].replace("-", "")
@@ -165,7 +182,7 @@ class AutomationPipeline:
         self.log("Iniciando scraping de detalhes...")
         try:
             result = subprocess.run(
-                [sys.executable, "scrape_detail.py"],
+                [self.python_executable, "scrape_detail.py"],
                 capture_output=True,
                 text=True,
                 timeout=3600  # 1 hora
@@ -216,7 +233,7 @@ class AutomationPipeline:
             # Executa análise
             self.log(f"  → Executando análise com IA (pode demorar 1-3 min)...")
             result = subprocess.run(
-                [sys.executable, "query.py"],
+                [self.python_executable, "query.py"],
                 capture_output=True,
                 text=True,
                 timeout=300  # 5 minutos
@@ -228,14 +245,40 @@ class AutomationPipeline:
             
             # Extrai JSON da saída
             output = result.stdout
-            json_start = output.find('{')
-            json_end = output.rfind('}') + 1
             
-            if json_start == -1 or json_end == 0:
+            # Tenta encontrar o JSON mais completo (começa com "imovel")
+            # Procura de trás para frente para pegar o último JSON válido
+            json_start = -1
+            json_end = -1
+            
+            # Procura padrão: {"imovel" para garantir que é o JSON correto
+            matches = list(re.finditer(r'\{\s*"imovel"\s*:', output))
+            
+            if matches:
+                # Pega o último match (mais provável de ser o correto)
+                json_start = matches[-1].start()
+                # Agora procura o final do JSON a partir deste ponto
+                brace_count = 0
+                for i in range(json_start, len(output)):
+                    if output[i] == '{':
+                        brace_count += 1
+                    elif output[i] == '}':
+                        brace_count -= 1
+                        if brace_count == 0:
+                            json_end = i + 1
+                            break
+            
+            if json_start == -1 or json_end == -1:
                 self.log(f"  ✗ JSON não encontrado na saída", "ERROR")
+                self.log(f"  DEBUG: Output primeiras 500 chars: {output[:500]}", "ERROR")
                 return None
             
-            analysis_json = json.loads(output[json_start:json_end])
+            try:
+                analysis_json = json.loads(output[json_start:json_end])
+            except json.JSONDecodeError as e:
+                self.log(f"  ✗ Erro ao decodificar JSON: {e}", "ERROR")
+                self.log(f"  DEBUG: JSON extraído: {output[json_start:json_end][:200]}", "ERROR")
+                return None
             
             # Salva análise
             self.analysis_dir.mkdir(parents=True, exist_ok=True)
