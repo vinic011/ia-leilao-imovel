@@ -1,6 +1,7 @@
 import streamlit as st
 import json
 import os
+import sys
 import pandas as pd
 import plotly.graph_objects as go
 from pathlib import Path
@@ -55,7 +56,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Funções auxiliares
-@st.cache_data
+@st.cache_data(ttl=60)  # Cache por 60 segundos apenas
 def load_config():
     """Carrega configurações do config.json"""
     try:
@@ -378,8 +379,10 @@ elif page == "🔍 Buscar Imóveis":
         if st.button("🔍 Executar Busca de Lista", type="primary", use_container_width=True):
             with st.spinner("🤖 Executando scraping... Isso pode levar alguns minutos..."):
                 try:
+                    # Usa o Python do ambiente virtual
+                    python_exe = sys.executable
                     result = subprocess.run(
-                        ["python", "scrape_property_list.py"],
+                        [python_exe, "scrape_property_list.py"],
                         capture_output=True,
                         text=True,
                         timeout=300
@@ -417,8 +420,10 @@ elif page == "🔍 Buscar Imóveis":
         if st.button("📥 Baixar Todos os Detalhes", type="primary", use_container_width=True):
             with st.spinner("🤖 Baixando detalhes... Aguarde..."):
                 try:
+                    # Usa o Python do ambiente virtual
+                    python_exe = sys.executable
                     result = subprocess.run(
-                        ["python", "scrape_detail.py"],
+                        [python_exe, "scrape_detail.py"],
                         capture_output=True,
                         text=True,
                         timeout=1800  # 30 minutos
@@ -501,13 +506,16 @@ elif page == "🤖 Analisar Imóvel":
     if analyze_button:
         with st.spinner("🤖 Analisando imóvel com IA... Isso pode levar alguns minutos..."):
             try:
-                # Atualizar config.json com o imóvel selecionado
-                config["imovel"] = selected_property["id"]
-                save_config(config)
+                # Recarregar config.json direto do arquivo (sem cache) e atualizar imóvel
+                with open("config.json", "r") as f:
+                    fresh_config = json.load(f)
+                fresh_config["imovel"] = selected_property["id"]
+                save_config(fresh_config)
                 
-                # Executar query.py
+                # Executar query.py com o Python do ambiente virtual
+                python_exe = sys.executable
                 result = subprocess.run(
-                    ["python", "query.py"],
+                    [python_exe, "query.py"],
                     capture_output=True,
                     text=True,
                     timeout=300

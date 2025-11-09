@@ -6,14 +6,29 @@ import time
 import pytesseract
 from pdf2image import convert_from_path
 
-# lendo matricula
-paginas = convert_from_path(f"data/detail/{vars['cidade'].lower()}_{vars['estado'].lower()}/{vars['imovel']}.pdf")
-matricula_imovel = ""
-for pagina in paginas:
-    matricula_imovel += pytesseract.image_to_string(pagina) + "\n"
+# Caminho do Poppler local
+POPPLER_PATH = os.path.join(os.path.dirname(__file__), "poppler", "poppler-24.08.0", "Library", "bin")
 
-print(len(matricula_imovel))
-matricula_imovel = matricula_imovel[:1500]
+# lendo matricula (se existir o PDF)
+pdf_path = f"data/detail/{vars['cidade'].lower()}_{vars['estado'].lower()}/{vars['imovel']}.pdf"
+matricula_imovel = ""
+
+if os.path.exists(pdf_path):
+    print(f"[OK] PDF encontrado: {pdf_path}")
+    try:
+        paginas = convert_from_path(pdf_path, poppler_path=POPPLER_PATH)
+        for pagina in paginas:
+            matricula_imovel += pytesseract.image_to_string(pagina) + "\n"
+        
+        print(f"Matricula extraida: {len(matricula_imovel)} caracteres")
+        matricula_imovel = matricula_imovel[:1500]
+    except Exception as e:
+        print(f"[AVISO] Erro ao processar PDF: {e}")
+        matricula_imovel = "PDF nao pode ser processado."
+else:
+    print(f"[AVISO] PDF nao encontrado: {pdf_path}")
+    print("Continuando analise apenas com informacoes do HTML...")
+    matricula_imovel = "Matricula nao disponivel (PDF nao encontrado)."
 #lendo detalhe
 with open(f"data/detail/{vars['cidade'].lower()}_{vars['estado'].lower()}/{vars['imovel']}.html", "r", encoding="utf-8") as f:
     detail = f.read()
@@ -36,7 +51,7 @@ print("thread", thread_id)
 message = client.beta.threads.messages.create(
     thread_id=thread_id,
     role="user",
-    content=f"Esta é a descrição resumida do imóvel: {detail}, matricula do imóvel: {matricula_imovel}.",
+    content=f"Esta é a descrição resumida do imóvel: {detail}\n\nMatrícula do imóvel: {matricula_imovel}",
     attachments=[
         {
             "file_id": file_id,
