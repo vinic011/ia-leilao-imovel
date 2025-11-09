@@ -45,12 +45,16 @@ st.markdown("""
         border-left: 4px solid #ffc107;
         padding: 1rem;
         margin: 0.5rem 0;
+        color: #856404;
+        font-weight: 500;
     }
     .success-box {
         background: #d4edda;
         border-left: 4px solid #28a745;
         padding: 1rem;
         margin: 0.5rem 0;
+        color: #155724;
+        font-weight: 500;
     }
 </style>
 """, unsafe_allow_html=True)

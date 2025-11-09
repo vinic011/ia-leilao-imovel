@@ -1,0 +1,219 @@
+{
+  "name": "IA Leilão Imóveis - Automação Semanal",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * 1"
+            }
+          ]
+        }
+      },
+      "name": "Toda Segunda 8h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -880,
+        112
+      ],
+      "id": "4a02005d-78e2-4951-bf35-c493859d5176"
+    },
+    {
+      "parameters": {
+        "command": "=C:\\Users\\ymarc\\OneDrive\\Desktop\\ITA_2025\\TE_251\\Repositorio\\ia-leilao-imovel\\venv\\Scripts\\python.exe C:\\Users\\ymarc\\OneDrive\\Desktop\\ITA_2025\\TE_251\\Repositorio\\ia-leilao-imovel\\automation.py --estado MG --cidade \"UBERLANDIA\" --max-imoveis 3 --min-nota 0"
+      },
+      "name": "Executar Análise",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        -656,
+        320
+      ],
+      "id": "182af03f-5b01-4b38-b831-d6f2106f9d71",
+      "notes": "Executa script Python que faz scraping + análise IA"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extrai JSON da saída do script Python\nconst output = $input.item.json.stdout;\n\n// Procura pelos markers de JSON\nconst startMarker = '--- JSON OUTPUT START ---';\nconst endMarker = '--- JSON OUTPUT END ---';\n\nconst jsonStart = output.indexOf(startMarker);\nconst jsonEnd = output.indexOf(endMarker);\n\nif (jsonStart === -1 || jsonEnd === -1) {\n  throw new Error('Markers JSON não encontrados na saída');\n}\n\n// Extrai e parseia JSON\nconst jsonStr = output.substring(jsonStart + startMarker.length, jsonEnd).trim();\nconst result = JSON.parse(jsonStr);\n\n// Adiciona timestamp formatado\nresult.timestamp_formatado = new Date(result.timestamp).toLocaleString('pt-BR', {\n  timeZone: 'America/Sao_Paulo',\n  day: '2-digit',\n  month: '2-digit',\n  year: 'numeric',\n  hour: '2-digit',\n  minute: '2-digit'\n});\n\nreturn result;"
+      },
+      "name": "Parse JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -384,
+        112
+      ],
+      "id": "b3de8a4d-a14c-4247-b38a-27d9e82bc675",
+      "notes": "Extrai e parseia JSON da saída stdout"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{$json.imoveis_aprovados}}",
+              "operation": "larger"
+            }
+          ]
+        }
+      },
+      "name": "Tem Imóveis Aprovados?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -224,
+        112
+      ],
+      "id": "1048cdbe-f061-49a5-b318-8fc349fe6049"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Gera HTML para email\nconst data = $input.item.json;\n\n// Função helper para cor da nota\nfunction getNotaClass(nota) {\n  if (nota >= 7) return 'nota-alta';\n  if (nota >= 5) return 'nota-media';\n  return 'nota-baixa';\n}\n\n// Função helper para emoji\nfunction getNotaEmoji(nota) {\n  if (nota >= 7) return '🟢';\n  if (nota >= 5) return '🟡';\n  return '🔴';\n}\n\n// Constrói HTML\nlet html = `\n<!DOCTYPE html>\n<html lang=\"pt-BR\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <style>\n    body {\n      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;\n      line-height: 1.6;\n      color: #333;\n      max-width: 800px;\n      margin: 0 auto;\n      background: #f4f4f4;\n    }\n    .container {\n      background: white;\n      margin: 20px;\n      border-radius: 10px;\n      overflow: hidden;\n      box-shadow: 0 2px 10px rgba(0,0,0,0.1);\n    }\n    .header {\n      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);\n      color: white;\n      padding: 30px;\n      text-align: center;\n    }\n    .header h1 {\n      margin: 0;\n      font-size: 28px;\n    }\n    .header p {\n      margin: 10px 0 0 0;\n      opacity: 0.9;\n    }\n    .summary {\n      padding: 20px 30px;\n      background: #f8f9fa;\n      border-bottom: 3px solid #667eea;\n    }\n    .summary h2 {\n      margin-top: 0;\n      color: #667eea;\n    }\n    .stats {\n      display: grid;\n      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));\n      gap: 15px;\n      margin-top: 15px;\n    }\n    .stat-card {\n      background: white;\n      padding: 15px;\n      border-radius: 8px;\n      text-align: center;\n      box-shadow: 0 1px 3px rgba(0,0,0,0.1);\n    }\n    .stat-value {\n      font-size: 24px;\n      font-weight: bold;\n      color: #667eea;\n    }\n    .stat-label {\n      font-size: 12px;\n      color: #666;\n      margin-top: 5px;\n    }\n    .content {\n      padding: 30px;\n    }\n    .imovel {\n      border: 1px solid #e0e0e0;\n      border-radius: 10px;\n      padding: 20px;\n      margin-bottom: 20px;\n      background: white;\n      transition: box-shadow 0.3s;\n    }\n    .imovel:hover {\n      box-shadow: 0 4px 12px rgba(0,0,0,0.1);\n    }\n    .imovel-header {\n      display: flex;\n      justify-content: space-between;\n      align-items: center;\n      margin-bottom: 15px;\n      border-bottom: 2px solid #f0f0f0;\n      padding-bottom: 10px;\n    }\n    .imovel-titulo h3 {\n      margin: 0;\n      color: #333;\n      font-size: 20px;\n    }\n    .imovel-subtitulo {\n      color: #666;\n      font-size: 14px;\n      margin-top: 5px;\n    }\n    .nota-badge {\n      font-size: 36px;\n      font-weight: bold;\n      padding: 10px 20px;\n      border-radius: 10px;\n      display: flex;\n      align-items: center;\n      gap: 10px;\n    }\n    .nota-alta { color: #28a745; background: #d4edda; }\n    .nota-media { color: #ffc107; background: #fff3cd; }\n    .nota-baixa { color: #dc3545; background: #f8d7da; }\n    .imovel-info {\n      display: grid;\n      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));\n      gap: 15px;\n      margin: 15px 0;\n    }\n    .info-item {\n      background: #f8f9fa;\n      padding: 10px;\n      border-radius: 5px;\n    }\n    .info-label {\n      font-size: 11px;\n      color: #666;\n      text-transform: uppercase;\n      margin-bottom: 5px;\n    }\n    .info-value {\n      font-size: 14px;\n      font-weight: bold;\n      color: #333;\n    }\n    .riscos {\n      background: #fff3cd;\n      border-left: 4px solid #ffc107;\n      padding: 15px;\n      margin: 15px 0;\n      border-radius: 5px;\n    }\n    .riscos h4 {\n      margin: 0 0 10px 0;\n      color: #856404;\n    }\n    .riscos ul {\n      margin: 0;\n      padding-left: 20px;\n    }\n    .riscos li {\n      margin: 5px 0;\n      color: #856404;\n    }\n    .proximos-passos {\n      background: #d4edda;\n      border-left: 4px solid #28a745;\n      padding: 15px;\n      margin: 15px 0;\n      border-radius: 5px;\n    }\n    .proximos-passos h4 {\n      margin: 0 0 10px 0;\n      color: #155724;\n    }\n    .proximos-passos ol {\n      margin: 0;\n      padding-left: 20px;\n    }\n    .proximos-passos li {\n      margin: 8px 0;\n      color: #155724;\n    }\n    .footer {\n      background: #f8f9fa;\n      padding: 20px;\n      text-align: center;\n      color: #666;\n      font-size: 12px;\n      border-top: 1px solid #e0e0e0;\n    }\n    .imovel-id {\n      font-family: monospace;\n      background: #f0f0f0;\n      padding: 2px 6px;\n      border-radius: 3px;\n      font-size: 11px;\n    }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>🏠 Novos Imóveis de Leilão Analisados</h1>\n      <p>${data.cidade} / ${data.estado}</p>\n      <p>${data.timestamp_formatado}</p>\n    </div>\n    \n    <div class=\"summary\">\n      <h2>📊 Resumo da Análise</h2>\n      <div class=\"stats\">\n        <div class=\"stat-card\">\n          <div class=\"stat-value\">${data.imoveis_encontrados}</div>\n          <div class=\"stat-label\">Imóveis Encontrados</div>\n        </div>\n        <div class=\"stat-card\">\n          <div class=\"stat-value\">${data.imoveis_analisados}</div>\n          <div class=\"stat-label\">Analisados</div>\n        </div>\n        <div class=\"stat-card\">\n          <div class=\"stat-value\">${data.imoveis_aprovados}</div>\n          <div class=\"stat-label\">Aprovados (≥${data.min_nota})</div>\n        </div>\n        <div class=\"stat-card\">\n          <div class=\"stat-value\">${data.resumo_executivo.melhor_nota.toFixed(1)}</div>\n          <div class=\"stat-label\">Melhor Nota</div>\n        </div>\n      </div>\n    </div>\n    \n    <div class=\"content\">\n      <h2>🏆 Top ${Math.min(5, data.top_imoveis.length)} Imóveis</h2>\n`;\n\n// Adiciona cada imóvel (top 5)\ndata.top_imoveis.slice(0, 5).forEach((imovel, index) => {\n  html += `\n      <div class=\"imovel\">\n        <div class=\"imovel-header\">\n          <div class=\"imovel-titulo\">\n            <h3>#${index + 1} ${imovel.condominio}</h3>\n            <div class=\"imovel-subtitulo\">\n              Apartamento ${imovel.apartamento} | ${imovel.comarca}\n            </div>\n          </div>\n          <div class=\"nota-badge ${getNotaClass(imovel.nota_final)}\">\n            ${getNotaEmoji(imovel.nota_final)} ${imovel.nota_final.toFixed(1)}\n          </div>\n        </div>\n        \n        <div class=\"imovel-info\">\n          <div class=\"info-item\">\n            <div class=\"info-label\">Quartos</div>\n            <div class=\"info-value\">${imovel.quartos}</div>\n          </div>\n          <div class=\"info-item\">\n            <div class=\"info-label\">Área Privativa</div>\n            <div class=\"info-value\">${imovel.area_privativa_m2} m²</div>\n          </div>\n          <div class=\"info-item\">\n            <div class=\"info-label\">Valor Mínimo</div>\n            <div class=\"info-value\">${imovel.valor_minimo}</div>\n          </div>\n          <div class=\"info-item\">\n            <div class=\"info-label\">Desconto</div>\n            <div class=\"info-value\">${imovel.desconto_percent}</div>\n          </div>\n        </div>\n        \n        <div class=\"riscos\">\n          <h4>⚠️ Riscos Identificados</h4>\n          <ul>\n`;\n  \n  imovel.riscos.forEach(risco => {\n    html += `            <li>${risco}</li>\\n`;\n  });\n  \n  html += `\n          </ul>\n        </div>\n        \n        <div class=\"proximos-passos\">\n          <h4>✅ Próximos Passos Recomendados</h4>\n          <ol>\n`;\n  \n  imovel.proximos_passos.forEach(passo => {\n    html += `            <li>${passo}</li>\\n`;\n  });\n  \n  html += `\n          </ol>\n        </div>\n        \n        <p style=\"text-align: right; margin: 10px 0 0 0;\">\n          <small><strong>ID:</strong> <span class=\"imovel-id\">${imovel.id}</span></small>\n        </p>\n      </div>\n`;\n});\n\nhtml += `\n    </div>\n    \n    <div class=\"footer\">\n      <p><strong>IA Leilão Imóveis</strong> | Análise automatizada com GPT-4o</p>\n      <p>Este relatório foi gerado automaticamente pelo sistema de IA</p>\n      <p>Projeto TE-251 ITA | Desenvolvido por Frog, 32 e Delay</p>\n    </div>\n  </div>\n</body>\n</html>\n`;\n\nreturn { html };"
+      },
+      "name": "Gerar HTML Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "ca4d787c-e4a4-44b7-a09b-22f6965ba0fb",
+      "notes": "Cria HTML bonito para o email com top 5 imóveis"
+    },
+    {
+      "parameters": {
+        "fromEmail": "=ymarcal333@gmail.com",
+        "toEmail": "=yuri.marcal.8820@ga.ita.br",
+        "subject": "=🏠 {{$('Parse JSON').item.json.imoveis_aprovados}} Imóveis Aprovados em {{$('Parse JSON').item.json.cidade}}/{{$('Parse JSON').item.json.estado}}",
+        "html": "={{$json.html}}",
+        "options": {}
+      },
+      "name": "Enviar Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        224,
+        0
+      ],
+      "id": "b1dda6a6-9199-4c90-a9bf-563b9a2fc23d",
+      "webhookId": "5b7b59a5-8e45-49ac-9518-073ad9c51b74",
+      "credentials": {
+        "smtp": {
+          "id": "8OjXDwot9lTpHxLi",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "console.log('Nenhum imóvel aprovado nesta análise');\nreturn {\n  message: 'Sem imóveis aprovados',\n  cidade: $input.item.json.cidade,\n  estado: $input.item.json.estado,\n  imoveis_analisados: $input.item.json.imoveis_analisados\n};"
+      },
+      "name": "Log - Sem Imóveis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        208
+      ],
+      "id": "5588fe1a-96e3-47f1-b7fb-1d5c5fc498a2",
+      "notes": "Apenas registra que não houve imóveis aprovados"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Mock data para testar o fluxo completo\nconst mockData = {\n  \"timestamp\": \"2025-11-09T16:42:24.438100\",\n  \"estado\": \"GO\",\n  \"cidade\": \"GOIANIA\",\n  \"min_nota\": 7.0,\n  \"imoveis_encontrados\": 10,\n  \"imoveis_analisados\": 3,\n  \"imoveis_aprovados\": 2,\n  \"top_imoveis\": [\n    {\n      \"id\": \"1444111529\",\n      \"nota_final\": 8.5,\n      \"comarca\": \"Goiânia\",\n      \"condominio\": \"Residencial Aurora\",\n      \"apartamento\": \"898\",\n      \"quartos\": \"3\",\n      \"area_privativa_m2\": \"113.00\",\n      \"valor_minimo\": \"R$ 282.203,00\",\n      \"desconto_percent\": \"31%\",\n      \"criterios\": [\n        {\n          \"nome\": \"Liquidez & Preço de Entrada\",\n          \"nota\": 8.4,\n          \"justificativa\": \"Excelente desconto de 31% em relação ao valor de avaliação. Localização privilegiada com alta demanda.\"\n        },\n        {\n          \"nome\": \"Situação Registral & Risco Jurídico\",\n          \"nota\": 8.6,\n          \"justificativa\": \"Documentação regular, sem pendências judiciais. Processo de consolidação em andamento normal.\"\n        },\n        {\n          \"nome\": \"Despesas Propter Rem\",\n          \"nota\": 8.5,\n          \"justificativa\": \"IPTU e condomínio dentro do esperado para a região. Sem passivos significativos.\"\n        }\n      ],\n      \"riscos\": [\n        \"Possível passivo condominial próximo ao limite legal\",\n        \"Prazo de consolidação pode comprometer janela de revenda\"\n      ],\n      \"proximos_passos\": [\n        \"Verificar com síndico o valor exato do passivo condominial\",\n        \"Consultar cartório sobre prazos realistas para registro\",\n        \"Agendar visita técnica ao imóvel\"\n      ]\n    },\n    {\n      \"id\": \"1444427923\",\n      \"nota_final\": 7.8,\n      \"comarca\": \"Goiânia\",\n      \"condominio\": \"Residencial Portal do Vale\",\n      \"apartamento\": \"201\",\n      \"quartos\": \"2\",\n      \"area_privativa_m2\": \"75.00\",\n      \"valor_minimo\": \"R$ 180.000,00\",\n      \"desconto_percent\": \"28%\",\n      \"criterios\": [\n        {\n          \"nome\": \"Liquidez & Preço de Entrada\",\n          \"nota\": 7.5,\n          \"justificativa\": \"Bom desconto e localização favorável para revenda.\"\n        },\n        {\n          \"nome\": \"Situação Registral & Risco Jurídico\",\n          \"nota\": 8.0,\n          \"justificativa\": \"Documentação em ordem, processo normal.\"\n        },\n        {\n          \"nome\": \"Despesas Propter Rem\",\n          \"nota\": 7.9,\n          \"justificativa\": \"Despesas dentro do esperado.\"\n        }\n      ],\n      \"riscos\": [\n        \"Condomínio com pequeno atraso em manutenções\",\n        \"Área menor pode limitar público-alvo\"\n      ],\n      \"proximos_passos\": [\n        \"Verificar situação das manutenções pendentes\",\n        \"Analisar perfil de compradores na região\",\n        \"Solicitar certidões negativas atualizadas\"\n      ]\n    }\n  ],\n  \"erros\": [],\n  \"resumo_executivo\": {\n    \"taxa_sucesso\": \"100.0%\",\n    \"taxa_aprovacao\": \"66.7%\",\n    \"melhor_nota\": 8.5,\n    \"nota_media\": 8.15\n  }\n};\n\n// Simular output do comando Python\nreturn {\n  json: {\n    stdout: `\n[2025-11-09 16:42:24] [INFO] Análise concluída com sucesso\n[2025-11-09 16:42:24] [INFO] Imóveis encontrados: 10\n[2025-11-09 16:42:24] [INFO] Imóveis analisados: 3\n[2025-11-09 16:42:24] [INFO] Imóveis aprovados: 2\n\n--- JSON OUTPUT START ---\n${JSON.stringify(mockData)}\n--- JSON OUTPUT END ---\n`\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -656,
+        -80
+      ],
+      "id": "df80485b-9a15-4036-ae62-56f80b1e0a61",
+      "name": "Mock Analysis"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Toda Segunda 8h": {
+      "main": [
+        [
+          {
+            "node": "Executar Análise",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Executar Análise": {
+      "main": [
+        [
+          {
+            "node": "Parse JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse JSON": {
+      "main": [
+        [
+          {
+            "node": "Tem Imóveis Aprovados?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tem Imóveis Aprovados?": {
+      "main": [
+        [
+          {
+            "node": "Gerar HTML Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log - Sem Imóveis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gerar HTML Email": {
+      "main": [
+        [
+          {
+            "node": "Enviar Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mock Analysis": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "6a373668-4b8b-4f21-b46e-d9bb459bbe07",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c058fcf0227fb4a860b2a5e079a59fd455b620ef3feec9a833103b345fc327f6"
+  },
+  "id": "bGrnFOgc8f81sCuG",
+  "tags": []
+}

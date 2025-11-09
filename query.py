@@ -5,6 +5,11 @@ from var import vars
 import time
 import pytesseract
 from pdf2image import convert_from_path
+import warnings
+import sys
+
+# Suprime warnings de depreciação da API
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 # Caminho do Poppler local
 POPPLER_PATH = os.path.join(os.path.dirname(__file__), "poppler", "poppler-24.08.0", "Library", "bin")
@@ -46,7 +51,7 @@ assistant_id = vars["assistant_id"]
 
 thread = client.beta.threads.create()
 thread_id = thread.id
-print("thread", thread_id)
+print("thread", thread_id, file=sys.stderr)  # Log para stderr para não poluir stdout
 
 message = client.beta.threads.messages.create(
     thread_id=thread_id,
@@ -71,14 +76,15 @@ time.sleep(10)
 # Recupera mensagens
 messages = client.beta.threads.messages.list(thread_id=thread_id)
 
-print("\n--- Resposta do Assistant ---\n")
+print("\n--- Resposta do Assistant ---\n", file=sys.stderr)
 for msg in messages.data:
     if msg.role == "assistant":
         for content in msg.content:
             if content.type == "text":
+                # Imprime na saída padrão apenas o JSON
                 print(content.text.value)
             elif content.type == "output_text":
                 print(content.output_text.value)
             else:
-                print("Outro tipo de conteúdo:", content)
+                print("Outro tipo de conteúdo:", content, file=sys.stderr)
 
