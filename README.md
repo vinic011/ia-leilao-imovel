@@ -214,7 +214,7 @@ n8n
 #### 3. Importar Workflow
 
 1. No n8n, vá em **Menu > Import from File**
-2. Selecione `workflow_n8n_example.json`
+2. Selecione `workflow_n8n.json`
 3. Configure credenciais SMTP (Gmail recomendado)
 4. Configure variáveis de ambiente
 5. Ative o workflow
@@ -287,7 +287,7 @@ ia-leilao-imovel/
 │   ├── requirements.txt            # Dependências Python
 │   ├── env.yaml                    # Config ambiente conda
 │   ├── .env                        # Chaves de API (criar)
-│   └── workflow_n8n_example.json   # Workflow n8n pronto
+│   └── workflow_n8n.json   # Workflow n8n pronto
 │
 ├── 📚 Documentação
 │   ├── README.md                   # Este arquivo
@@ -416,7 +416,7 @@ A IA retorna um JSON estruturado com:
 ### Arquivos de Configuração
 | Arquivo | Descrição |
 |---------|-----------|
-| `workflow_n8n_example.json` | Workflow n8n pronto para importar |
+| `workflow_n8n.json` | Workflow n8n pronto para importar |
 | `config.json` | Configurações do sistema (IDs, cidades) |
 | `.env` | Chaves de API (criar manualmente) |
 
