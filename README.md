@@ -521,7 +521,7 @@ pip install --upgrade streamlit
 |-----|--------|-------------------|
 | 🐸 **Frog** | vinic011 | Coleta de dados (scraping), prompts |
 | 🎯 **32** | ymarcal | Fine-tuning, Streamlit, n8n, artigo |
-| ⏰ **Delay** | - | Avaliação, validação, integração |
+| ⏰ **Delay** | Ferantsandin | Avaliação, validação, integração |
 
 ---
 
